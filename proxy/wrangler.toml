@@ -1,0 +1,11 @@
+name = "blueprintify-proxy"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+# the sites that may call this proxy, comma-separated
+ALLOWED_ORIGINS = "https://YOUR-GITHUB-NAME.github.io"
+
+# secrets, set from this folder:
+#   npx wrangler secret put ANTHROPIC_API_KEY
+#   npx wrangler secret put ACCESS_CODE     (optional)

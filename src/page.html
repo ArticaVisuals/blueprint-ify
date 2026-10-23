@@ -1,0 +1,369 @@
+<title>Blueprint-ify</title>
+<style>
+/* Layout: one 958px column. The drawing frame is the page; the inventory sits under it. Label tabs, 0.5px rules, one ink on one paper. */
+:root {
+  --paper: #eeeeee; --ink: #191919; --mid: #2c2c2c; --lo: #7c7c7c; --dim: #b4b4b4; --dim-lo: #cdcdcd; --grid: transparent;
+  --font: "Caliper Sans", "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-sheet]) { --paper: #0f1012; --ink: #e3e5e8; --mid: #c8cbd0; --lo: #6e727a; --dim: #3b3e45; --dim-lo: #2b2e34; --grid: transparent; color-scheme: dark; }
+}
+:root[data-theme="dark"]:not([data-sheet]) { --paper: #0f1012; --ink: #e3e5e8; --mid: #c8cbd0; --lo: #6e727a; --dim: #3b3e45; --dim-lo: #2b2e34; --grid: transparent; color-scheme: dark; }
+:root[data-sheet="drafting"] { --paper: #eeeeee; --ink: #191919; --mid: #2c2c2c; --lo: #7c7c7c; --dim: #b4b4b4; --dim-lo: #cdcdcd; --grid: transparent; color-scheme: light; }
+:root[data-sheet="blueprint"] { --paper: #1f4c86; --ink: #f1f5fc; --mid: #dce5f3; --lo: #9cb4d8; --dim: #5579ac; --dim-lo: #45699c; --grid: rgba(241, 245, 252, .1); color-scheme: dark; }
+:root[data-sheet="night"] { --paper: #0f1012; --ink: #e3e5e8; --mid: #c8cbd0; --lo: #6e727a; --dim: #3b3e45; --dim-lo: #2b2e34; --grid: transparent; color-scheme: dark; }
+
+html, body { background: var(--paper); color: var(--ink); }
+body { font: 12px/1.14 var(--font); padding-inline: 16px; padding-block: 18px 48px; transition: background-color 260ms cubic-bezier(.5,0,.1,1); }
+.page { max-width: 958px; margin: 0 auto; display: grid; gap: 16px; }
+[hidden] { display: none !important; }
+button, input, textarea { font: inherit; color: inherit; }
+
+.mast { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-inline: 2px; }
+.mast .r { text-align: right; }
+
+.console { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-auto-flow: row dense; gap: 10px; align-items: end; }
+.console:has(#photoField[data-off="1"]) { grid-template-columns: minmax(0, 1fr) auto; }
+.field { display: flex; flex-direction: column; min-width: 0; }
+.tab { border: .5px solid var(--ink); border-bottom: 0; padding: 5px; }
+.box { border: .5px solid var(--ink); padding: 0 10px; min-height: 47px; display: flex; align-items: center; gap: 8px; }
+.box:focus-within { outline: 1px solid var(--ink); outline-offset: 2px; }
+#obj { font: 24px/1.14 var(--font); background: transparent; border: 0; outline: none; width: 100%; min-width: 0; padding: 10px 0; }
+#obj::placeholder { color: var(--lo); opacity: 1; }
+.photos { gap: 5px; }
+.thumbs { display: flex; gap: 5px; }
+.thumb { position: relative; width: 30px; height: 30px; padding: 0; border: .5px solid var(--ink); background: none; cursor: pointer; border-radius: 0; }
+.thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.thumb:hover::after, .thumb:focus-visible::after { content: "×"; position: absolute; inset: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--ink) 72%, transparent); color: var(--paper); font-size: 16px; }
+.thumb:focus-visible { outline: 1px solid var(--ink); outline-offset: 2px; }
+#photoCount { color: var(--lo); font-variant-numeric: tabular-nums; }
+#photoCount:empty { display: none; }
+#photoField[data-off="1"] { display: none; }
+.console .wide { grid-column: 1 / -1; }
+/* fold: a small square on each panel that tucks its body away */
+.fold { flex: none; display: inline-grid; place-items: center; width: 17px; height: 17px; padding: 0; border: .5px solid var(--ink); background: transparent; color: inherit; font: 13px/1 var(--font); cursor: pointer; border-radius: 0; }
+.fold:hover { background: var(--ink); color: var(--paper); }
+.fold:focus-visible { outline: 1px solid var(--ink); outline-offset: 2px; }
+[data-folded="1"] .fold-body { display: none !important; }
+.tabrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.tabrow label { min-width: 0; }
+[data-folded="1"] > .tab { border-bottom: .5px solid var(--ink); }
+#refTabNote { display: none; color: var(--lo); }
+[data-folded="1"] #refTabNote:not(:empty) { display: inline; }
+.tab .aside { color: var(--lo); }
+.refbox { align-items: flex-start; gap: 10px; }
+#ref { flex: 1; min-width: 0; min-height: 24px; height: 24px; margin: 0; padding: 12px 0 10px; border: 0; background: transparent; font: inherit; line-height: 1.4; color: var(--ink); resize: none; overflow-y: auto; outline: none; }
+#ref::placeholder { color: var(--lo); opacity: 1; }
+.refside { display: flex; align-items: center; gap: 8px; padding-top: 7px; padding-bottom: 7px; flex: none; }
+#refCount { color: var(--lo); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#refCount:empty { display: none; }
+a.btn { color: inherit; text-decoration: none; display: inline-block; }
+.sources { margin: 0; color: var(--lo); line-height: 1.5; overflow-wrap: anywhere; }
+.sources a { color: var(--ink); text-decoration: underline; text-decoration-thickness: .5px; text-underline-offset: 2px; }
+#console[data-drop="1"] #photoField .box { outline: 1px dashed var(--ink); outline-offset: 2px; }
+.job { display: flex; align-items: center; gap: 8px; border: .5px solid var(--ink); padding: 7px 10px; font-variant-numeric: tabular-nums; }
+.job::before { content: ""; flex: none; width: 6px; height: 6px; background: var(--ink); animation: blink 900ms steps(2, start) infinite; }
+.job span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#apiKey { flex: 1; min-width: 0; background: transparent; border: 0; padding: 12px 0; outline: none; font: inherit; color: var(--ink); }
+#apiKey::placeholder { color: var(--lo); opacity: 1; }
+.apistate { color: var(--lo); white-space: nowrap; }
+.apistate:empty { display: none; }
+#fix { flex: 1; min-width: 0; background: transparent; border: 0; border-radius: 0; padding: 12px 0; outline: none; }
+#fix::placeholder { color: var(--lo); opacity: 1; }
+#refineGo:disabled { opacity: .4; cursor: default; }
+
+.btn, .chip, .seg button { background: transparent; border: .5px solid var(--ink); padding: 6px 10px; cursor: pointer; white-space: nowrap; line-height: 1.14; border-radius: 0; }
+.btn:hover, .chip:hover, .seg button:hover { background: var(--ink); color: var(--paper); }
+.btn.primary { background: var(--ink); color: var(--paper); padding: 8px 14px; }
+.btn.primary:hover { background: var(--mid); }
+:is(.btn, .chip, .seg button, summary, input[type="range"], .inv li):focus-visible { outline: 1px solid var(--ink); outline-offset: 2px; }
+.seg button[aria-pressed="true"], .btn[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+
+.under { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: start; }
+.under:has(#refineForm[hidden]) { grid-template-columns: minmax(0, 1fr); }
+.chipbox { padding-block: 10px; min-height: 27px; }
+.under .span { grid-column: 1 / -1; }
+.viewbox { flex-wrap: wrap; gap: 10px 22px; padding-block: 10px; min-height: 27px; }
+.vopt { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.vopt input[type="range"] { width: 150px; }
+#explodeTg[data-off="1"] { opacity: .4; }
+#explodeTg[data-off="1"] .btn, #explodeTg[data-off="1"] input { cursor: not-allowed; }
+.detail { position: absolute; z-index: 9; width: min(420px, calc(100vw - 32px)); display: flex; flex-direction: column; background: var(--paper); box-shadow: 4px 4px 0 var(--ink); }
+.detail .tab { cursor: grab; user-select: none; touch-action: none; }
+.detail .tab:active { cursor: grabbing; }
+.detailbody { flex-direction: column; align-items: stretch; padding: 0; gap: 0; }
+#detailSvg { display: block; width: 100%; height: auto; }
+.detailfoot { display: flex; align-items: center; gap: 10px; padding: 6px 10px 8px; border-top: .5px solid var(--ink); }
+#detailMeta { margin: 0; flex: 1; min-width: 0; color: var(--lo); line-height: 1.4; font-variant-numeric: tabular-nums; }
+.btn.mini { padding: 2px 7px; }
+.vopt.labels { margin-left: auto; }
+.fold { font-size: 13px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { padding: 4px 8px; }
+.status { margin: 0; min-width: 0; color: var(--ink); line-height: 1.4; }
+.status:empty { display: none; }
+.status[data-busy="1"]::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 7px; background: var(--ink); animation: blink 900ms steps(2, start) infinite; }
+@keyframes blink { to { visibility: hidden; } }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; border-top: .5px solid var(--ink); border-bottom: .5px solid var(--ink); padding-block: 8px; }
+.tg { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.tg .btn { padding: 4px 8px; min-width: 46px; }
+.seg { display: inline-flex; }
+.seg button { padding: 4px 8px; }
+.seg button + button { border-left: 0; }
+.end { color: var(--lo); }
+input[type="range"] { -webkit-appearance: none; appearance: none; background: transparent; width: 170px; max-width: 34vw; height: 22px; cursor: ew-resize; }
+input[type="range"]::-webkit-slider-runnable-track { height: 1px; background: var(--ink); }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 9px; height: 15px; margin-top: -7px; background: var(--paper); border: .5px solid var(--ink); border-radius: 0; }
+input[type="range"]::-moz-range-track { height: 1px; background: var(--ink); }
+input[type="range"]::-moz-range-thumb { width: 9px; height: 15px; background: var(--paper); border: .5px solid var(--ink); border-radius: 0; }
+
+.stagewrap { overflow-x: auto; }
+#stage { display: block; width: 100%; min-width: 0; height: auto; touch-action: pan-x pan-y; cursor: crosshair; }
+
+.invhead { display: flex; justify-content: space-between; gap: 12px; border: .5px solid var(--ink); padding: 5px; }
+#invMeta { color: var(--lo); margin-left: auto; }
+.invhead { align-items: center; }
+.inv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; margin-top: 10px; }
+.inv ol { list-style: none; margin: 0; padding: 0; min-width: 0; }
+.inv li { display: grid; grid-template-columns: 26px minmax(0, 1fr) 92px 30px; border: .5px solid var(--ink); border-top-width: 0; cursor: default; transition: background-color 200ms cubic-bezier(.5,0,.1,1), color 200ms cubic-bezier(.5,0,.1,1); }
+.inv li:first-child { border-top-width: .5px; }
+.inv li span { height: 20.7px; box-sizing: border-box; padding: 3px 5px 0; border-left: .5px solid var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.inv li span:first-child { border-left: 0; }
+.inv li.on { background: var(--ink); color: var(--paper); }
+.inv li.on span { border-color: var(--paper); }
+.hint { margin: 0; color: var(--lo); }
+
+details { border-top: .5px solid var(--ink); padding-top: 8px; }
+summary { cursor: pointer; list-style: none; display: inline-block; }
+summary::-webkit-details-marker { display: none; }
+summary::before { content: "+ "; }
+details[open] summary::before { content: "− "; }
+textarea { display: block; width: 100%; box-sizing: border-box; min-height: 280px; margin-top: 10px; background: transparent; border: .5px solid var(--ink); padding: 10px; font: 11px/1.4 var(--mono); color: var(--ink); resize: vertical; outline: none; }
+.specrow { display: flex; gap: 12px; align-items: baseline; margin-top: 8px; flex-wrap: wrap; }
+#specErr { color: var(--lo); }
+
+/* own-chat route: for viewers without Claude in the page */
+.manual { display: flex; flex-direction: column; }
+.mbox { border: .5px solid var(--ink); padding: 10px; display: grid; gap: 10px; }
+.mbox p { margin: 0; max-width: 70ch; line-height: 1.4; }
+.mbox ol { margin: 0; padding-left: 18px; display: grid; gap: 4px; line-height: 1.4; }
+.mbox textarea { margin-top: 0; min-height: 120px; }
+#promptText { min-height: 90px; color: var(--lo); }
+.mrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.mrow .note { color: var(--lo); }
+
+/* save sheet: for viewers whose browser cannot take a download from the page */
+.sheet { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, var(--paper) 86%, transparent); }
+.sheetbox { width: min(760px, 100%); max-height: calc(100% - 32px); display: flex; flex-direction: column; background: var(--paper); }
+.sheetbox .box { flex-direction: column; align-items: stretch; padding: 10px; gap: 10px; min-height: 0; overflow: auto; }
+.sheetbox img { display: block; width: 100%; height: auto; max-height: 62vh; object-fit: contain; border: .5px solid var(--ink); background: var(--paper); }
+.sheetbox p { margin: 0; line-height: 1.4; }
+
+@media (max-width: 680px) {
+  .console { grid-template-columns: minmax(0, 1fr) auto; }
+  .console .grow { grid-column: 1 / -1; }
+  .photos { flex-wrap: wrap; }
+  .under { grid-template-columns: minmax(0, 1fr); }
+  .console:has(#photoField[data-off="1"]) { grid-template-columns: minmax(0, 1fr); }
+  .refbox { flex-wrap: wrap; }
+  .refside { width: 100%; padding-top: 0; justify-content: flex-end; }
+  #obj { font-size: 19px; }
+  .inv { grid-template-columns: minmax(0, 1fr); }
+  .inv ol + ol li:first-child { border-top-width: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+  .status[data-busy="1"]::before, .job::before { animation: none; }
+}
+</style>
+
+<div class="page">
+  <header class="mast">
+    <div>blueprint-ify<br>assembled to exploded, from a name, photos or spec notes</div>
+    <div class="r">v1.4<br>hairline × caliper sans</div>
+  </header>
+
+  <form id="console" class="console" autocomplete="off">
+    <div class="field grow">
+      <label class="tab" for="obj">object:</label>
+      <div class="box"><input id="obj" name="obj" type="text" placeholder="Name an object, e.g. Walkman TPS-L2" enterkeyhint="go"></div>
+    </div>
+    <div class="field" id="photoField">
+      <span class="tab">reference photos:</span>
+      <div class="box photos">
+        <div id="thumbs" class="thumbs"></div>
+        <span id="photoCount"></span>
+        <label class="btn" id="photoAdd" for="photoInput">add photos</label>
+        <input id="photoInput" type="file" accept="image/*" multiple hidden>
+      </div>
+    </div>
+    <div class="field wide" id="apiField" data-panel="api" hidden>
+      <div class="tab tabrow"><label for="apiKey"><span id="apiLabel">claude api key:</span> <span class="aside fold-body" id="apiAside"></span></label><button type="button" class="fold" aria-controls="apiBox">−</button></div>
+      <div class="box fold-body" id="apiBox">
+        <input id="apiKey" type="password" autocomplete="off" spellcheck="false">
+        <span id="apiState" class="apistate"></span>
+        <button type="button" id="apiSave" class="btn">save</button>
+        <button type="button" id="apiForget" class="btn" hidden>remove</button>
+      </div>
+    </div>
+    <div class="field wide" id="refField" data-panel="notes">
+      <div class="tab tabrow">
+        <label for="ref">spec notes: <span id="refTabNote"></span><span class="aside fold-body">optional. Paste text from a teardown, repair guide or spec sheet, with its link.</span></label>
+        <button type="button" class="fold" aria-controls="refBox">−</button>
+      </div>
+      <div class="box refbox fold-body" id="refBox">
+        <textarea id="ref" rows="1" spellcheck="false" placeholder="Paste text from a teardown, repair guide or spec sheet"></textarea>
+        <div class="refside">
+          <span id="refCount"></span>
+          <button type="button" id="refClear" class="btn" hidden>clear</button>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <span class="tab">draw:</span>
+      <div class="box">
+        <button id="go" class="btn primary" type="submit">blueprint-ify →</button>
+        <button id="stop" class="btn" type="button" hidden>stop</button>
+      </div>
+    </div>
+  </form>
+  <div id="job" class="job" hidden><span id="jobText"></span></div>
+  <p id="status" class="status" role="status" aria-live="polite">Loading the drawing...</p>
+
+  <section id="manual" class="manual" hidden aria-labelledby="manualTab">
+    <span class="tab" id="manualTab">draw with your own chat:</span>
+    <div class="mbox">
+      <ol>
+        <li id="manualStep1">The prompt for your object is on your clipboard.</li>
+        <li>Paste it into Claude at claude.ai, or any AI chat. Turn on web search so it reads iFixit itself, and attach photos of the object if you have them.</li>
+        <li>Copy the whole reply, paste it below, and press draw.</li>
+      </ol>
+      <textarea id="promptText" readonly hidden aria-label="The prompt to copy"></textarea>
+      <textarea id="reply" spellcheck="false" placeholder="Paste the reply here" aria-label="The reply from your chat"></textarea>
+      <div class="mrow">
+        <button type="button" id="drawReply" class="btn primary">draw →</button>
+        <button type="button" id="copyPrompt" class="btn">copy prompt again</button>
+        <button type="button" id="closeManual" class="btn">close</button>
+        <span id="manualErr" class="note" role="status"></span>
+      </div>
+    </div>
+  </section>
+
+  <div class="under">
+    <div class="field" data-panel="examples">
+      <div class="tab tabrow"><span id="exTab">examples:</span><button type="button" class="fold" aria-controls="exBox">−</button></div>
+      <div class="box chipbox fold-body" id="exBox" role="group" aria-labelledby="exTab"><div id="chips" class="chips"></div></div>
+    </div>
+    <form id="refineForm" class="field" autocomplete="off" data-panel="refine" hidden>
+      <div class="tab tabrow"><label for="fix">refine: <span class="aside fold-body">what looks off? Leave blank for a fresh check.</span></label><button type="button" class="fold" aria-controls="refineBox">−</button></div>
+      <div class="box fold-body" id="refineBox">
+        <input id="fix" type="text" placeholder="e.g. the screen sits too low">
+        <button id="refineGo" class="btn" type="submit">go →</button>
+      </div>
+    </form>
+    <div class="field span" data-panel="view">
+      <div class="tab tabrow"><span id="viewTab">view: <span class="aside fold-body">click any part for a detail view.</span></span><button type="button" class="fold" aria-controls="viewBox">−</button></div>
+      <div class="box viewbox fold-body" id="viewBox">
+        <div class="seg" role="group" aria-label="Drawing view">
+          <button type="button" data-view="iso" aria-pressed="true">isometric</button><button type="button" data-view="ortho" aria-pressed="false">orthographic</button><button type="button" data-view="section" aria-pressed="false">section</button>
+        </div>
+        <div class="vopt" id="orthoOpts" hidden>
+          <span>projection:</span>
+          <div class="seg" role="group" aria-label="Projection">
+            <button type="button" data-proj="third" aria-pressed="true">third angle · us/ansi</button><button type="button" data-proj="first" aria-pressed="false">first angle · iso</button>
+          </div>
+        </div>
+        <div class="vopt" id="sectionOpts" hidden>
+          <span>cut:</span>
+          <div class="seg" role="group" aria-label="Cutting plane direction">
+            <button type="button" data-cut="y" aria-pressed="true">front to back</button><button type="button" data-cut="x" aria-pressed="false">side to side</button>
+          </div>
+          <label for="cutPos">plane:</label>
+          <input id="cutPos" type="range" min="0" max="100" value="50">
+          <span class="end">or drag line A-A</span>
+        </div>
+        <div class="vopt labels">
+          <span>labels:</span>
+          <div class="seg" role="group" aria-label="Labels on the drawing and in exports">
+            <button type="button" data-labels="on" aria-pressed="true">on</button><button type="button" data-labels="off" aria-pressed="false">off</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="tg" id="explodeTg">
+      <label for="explode">explode:</label>
+      <button type="button" id="play" class="btn" aria-pressed="false">play</button>
+      <span class="end">assembled</span>
+      <input id="explode" type="range" min="0" max="100" value="100">
+      <span class="end">exploded</span>
+    </div>
+    <div class="tg">
+      <span>sheet:</span>
+      <div class="seg" role="group" aria-label="Sheet colour">
+        <button type="button" data-theme-btn="auto" aria-pressed="true">auto</button><button type="button" data-theme-btn="drafting" aria-pressed="false">drafting</button><button type="button" data-theme-btn="blueprint" aria-pressed="false">blueprint</button><button type="button" data-theme-btn="night" aria-pressed="false">night</button>
+      </div>
+    </div>
+    <div class="tg">
+      <span>save:</span>
+      <div class="seg" role="group" aria-label="Save the drawing">
+        <button type="button" id="saveSvg">svg</button><button type="button" id="savePng">png</button><button type="button" id="saveJson">spec</button>
+      </div>
+    </div>
+  </div>
+
+  <section id="detail" class="detail" role="dialog" aria-labelledby="detailTitle" hidden>
+    <div class="tab tabrow" id="detailHead"><span id="detailTitle">detail</span><button type="button" id="detailClose" class="fold" aria-label="Close the detail view" title="Close">×</button></div>
+    <div class="box detailbody">
+      <svg id="detailSvg" viewBox="0 0 400 270" role="img"></svg>
+      <div class="detailfoot">
+        <p id="detailMeta"></p>
+        <div class="seg" role="group" aria-label="Save this detail view"><button type="button" id="detailSvgBtn">svg</button><button type="button" id="detailPngBtn">png</button></div>
+      </div>
+    </div>
+  </section>
+
+  <div id="stagewrap" class="stagewrap"><svg id="stage" viewBox="0 0 958 680" role="img" aria-label="Exploded drawing"></svg></div>
+
+  <section aria-labelledby="invTab" data-panel="inventory">
+    <div class="invhead"><span id="invTab">inventory:</span><span id="invMeta"></span><button type="button" id="saveInv" class="btn mini" title="Download the inventory as an SVG">save svg</button><button type="button" class="fold" aria-controls="inv sources">−</button></div>
+    <div id="inv" class="inv fold-body"></div>
+    <p id="sources" class="sources fold-body" hidden></p>
+  </section>
+  <p class="hint">Hover a part, a callout or a row to lift it out of the stack. Click one for its detail view. Drag explode, or press play, to take the object apart and put it back.</p>
+
+  <details>
+    <summary>spec (json)</summary>
+    <textarea id="specText" spellcheck="false" aria-label="Drawing spec as JSON"></textarea>
+    <div class="specrow"><button type="button" id="applySpec" class="btn">apply spec</button><span id="specErr" role="status"></span></div>
+  </details>
+</div>
+
+<div id="saveSheet" class="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="saveTab">
+  <div class="sheetbox">
+    <span class="tab" id="saveTab">save:</span>
+    <div class="box">
+      <img id="saveImg" alt="The drawing, ready to save">
+      <p id="saveNote">Right-click the drawing and choose Save Image As. On a phone, press and hold it.</p>
+      <div class="mrow">
+        <button type="button" id="copySvg" class="btn">copy svg code</button>
+        <button type="button" id="closeSave" class="btn">close</button>
+        <span id="saveErr" class="note" role="status"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* hairline kernel: github.com/lucasmarkes/hairline, MIT License, Copyright (c) 2026 Lucas Marques */
+/*KERNEL*/
+</script>
+<script>
+const FONT_B64 = "/*FONT*/";
+/*PRESETS*/
+/*APP*/
+</script>
